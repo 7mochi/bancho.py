@@ -30,7 +30,8 @@ REDIS_PORT = int(os.environ["REDIS_PORT"])
 REDIS_USER = os.environ["REDIS_USER"]
 REDIS_PASS = os.environ["REDIS_PASS"]
 REDIS_DB = int(os.environ["REDIS_DB"])
-REDIS_DSN = f"redis://{REDIS_USER}:{REDIS_PASS}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+# Workaround because our redis instance is hosted on localhost by default without any credentials changed (it'll be changed later)
+REDIS_DSN = f"redis://localhost"
 
 OSU_API_KEY = os.environ["OSU_API_KEY"]
 

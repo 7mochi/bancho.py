@@ -4,15 +4,10 @@ import math
 from typing import Optional
 from typing import TypedDict
 
-try:  # TODO: ask asottile about this
-    from oppai_ng.oppai import OppaiWrapper
-except ModuleNotFoundError:
-    pass  # utils will handle this for us
-
 from peace_performance_python.objects import Beatmap as PeaceMap
 from peace_performance_python.objects import Calculator as PeaceCalculator
 
-
+from rosu_pp_py import Calculator, ScoreParams
 class DifficultyRating(TypedDict):
     performance: float
     star_rating: float
@@ -34,42 +29,36 @@ def calculate_performances_std(
     osu_file_path: str,
     scores: list[StdTaikoCatchScore],
 ) -> list[DifficultyRating]:
-    with OppaiWrapper() as calculator:
-        calculator.set_mode(0)
+    results: list[DifficultyRating] = []
 
-        results: list[DifficultyRating] = []
+    calculator = Calculator(osu_file_path)
 
-        for score in scores:
-            if score["mods"] is not None:
-                calculator.set_mods(score["mods"])
+    for score in scores:
+        mods = score["mods"] if score["mods"] != None else 0
+        acc = score["acc"] if score["acc"] != None else 100.00
+        nmisses = score["nmiss"] if score["nmiss"] != None else 0
+        combo = score["combo"]
 
-            if score["nmiss"] is not None:
-                calculator.set_nmiss(score["nmiss"])
+        params = ScoreParams(mods = mods, acc = acc, nMisses = nmisses, combo = combo)
 
-            if score["combo"] is not None:
-                calculator.set_combo(score["combo"])
+        [result] = calculator.calculate(params)
 
-            if score["acc"] is not None:
-                calculator.set_accuracy_percent(score["acc"])
+        pp = result.pp
+        sr = result.stars
 
-            calculator.calculate(osu_file_path)
+        if math.isnan(pp) or math.isinf(pp):
+            # TODO: report to logserver
+            pp = 0.0
+            sr = 0.0
+        else:
+            pp = round(pp, 5)
 
-            pp = calculator.get_pp()
-            sr = calculator.get_sr()
-
-            if math.isnan(pp) or math.isinf(pp):
-                # TODO: report to logserver
-                pp = 0.0
-                sr = 0.0
-            else:
-                pp = round(pp, 5)
-
-            results.append(
-                {
-                    "performance": pp,
-                    "star_rating": sr,
-                },
-            )
+        results.append(
+            {
+                "performance": pp,
+                "star_rating": sr,
+            },
+        )
 
     return results
 
