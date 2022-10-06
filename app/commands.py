@@ -65,10 +65,7 @@ from app.usecases.performance import ScoreDifficultyParams
 from app.utils import make_safe_name
 from app.utils import seconds_readable
 
-try:
-    from oppai_ng.oppai import OppaiWrapper
-except ModuleNotFoundError:
-    pass  # utils will handle this for us
+from rosu_pp_py import Calculator, ScoreParams
 
 if TYPE_CHECKING:
     from app.objects.channel import Channel
@@ -1229,32 +1226,30 @@ async def recalc(ctx: Context) -> Optional[str]:
             app.state.services.database.connection() as score_select_conn,
             app.state.services.database.connection() as update_conn,
         ):
-            with OppaiWrapper() as ezpp:
-                ezpp.set_mode(0)  # TODO: other modes
-                for mode in (0, 4, 8):  # vn!std, rx!std, ap!std
-                    # TODO: this should be using an async generator
-                    for row in await score_select_conn.fetch_all(
-                        "SELECT id, acc, mods, max_combo, nmiss "
-                        "FROM scores "
-                        "WHERE map_md5 = :map_md5 AND mode = :mode",
-                        {"map_md5": bmap.md5, "mode": mode},
-                    ):
-                        ezpp.set_mods(row["mods"])
-                        ezpp.set_nmiss(row["nmiss"])  # clobbers acc
-                        ezpp.set_combo(row["max_combo"])
-                        ezpp.set_accuracy_percent(row["acc"])
 
-                        ezpp.calculate(str(osu_file_path))
+            # ezpp.set_mode(9)  # TODO: other gamemodes
+            calculator = Calculator(str(osu_file_path))
+            for mode in (0, 4, 8):  # vn!std, rx!std, ap!std
+                # TODO: this should be using an async generator
+                for row in await score_select_conn.fetch_all(
+                    "SELECT id, acc, mods, max_combo, nmiss "
+                    "FROM scores "
+                    "WHERE map_md5 = :map_md5 AND mode = :mode",
+                    {"map_md5": bmap.md5, "mode": mode},
+                ):
+                    params = ScoreParams(mods = row["mods"], acc = row["acc"], nMisses = row["nmiss"], combo = row["max_combo"])
+                    
+                    [result] = calculator.calculate(params)
 
-                        pp = ezpp.get_pp()
+                    pp = result.pp
 
-                        if math.isinf(pp) or math.isnan(pp):
-                            continue
+                    if math.isinf(pp) or math.isnan(pp):
+                        continue
 
-                        await update_conn.execute(
-                            "UPDATE scores SET pp = :pp WHERE id = :score_id",
-                            {"pp": pp, "score_id": row["id"]},
-                        )
+                    await update_conn.execute(
+                        "UPDATE scores SET pp = :pp WHERE id = :score_id",
+                        {"pp": pp, "score_id": row["id"]},
+                    )
 
         return "Map recalculated."
     else:
@@ -1288,32 +1283,29 @@ async def recalc(ctx: Context) -> Optional[str]:
                         )
                         continue
 
-                    with OppaiWrapper() as ezpp:
-                        ezpp.set_mode(0)  # TODO: other modes
-                        for mode in (0, 4, 8):  # vn!std, rx!std, ap!std
-                            # TODO: this should be using an async generator
-                            for row in await score_select_conn.fetch_all(
-                                "SELECT id, acc, mods, max_combo, nmiss "
-                                "FROM scores "
-                                "WHERE map_md5 = :map_md5 AND mode = :mode",
-                                {"map_md5": bmap_md5, "mode": mode},
-                            ):
-                                ezpp.set_mods(row["mods"])
-                                ezpp.set_nmiss(row["nmiss"])  # clobbers acc
-                                ezpp.set_combo(row["max_combo"])
-                                ezpp.set_accuracy_percent(row["acc"])
+                    # ezpp.set_mode(9)  # TODO: other gamemodes
+                    calculator = Calculator(str(osu_file_path))
+                    for mode in (0, 4, 8):  # vn!std, rx!std, ap!std
+                        # TODO: this should be using an async generator
+                        for row in await score_select_conn.fetch_all(
+                            "SELECT id, acc, mods, max_combo, nmiss "
+                            "FROM scores "
+                            "WHERE map_md5 = :map_md5 AND mode = :mode",
+                            {"map_md5": bmap_md5, "mode": mode},
+                        ):
+                            params = ScoreParams(mods = row["mods"], acc = row["acc"], nMisses = row["nmiss"], combo = row["max_combo"])
 
-                                ezpp.calculate(str(osu_file_path))
+                            [result] = calculator.calculate(params)
 
-                                pp = ezpp.get_pp()
+                            pp = result.pp
 
-                                if math.isinf(pp) or math.isnan(pp):
-                                    continue
+                            if math.isinf(pp) or math.isnan(pp):
+                                continue
 
-                                await update_conn.execute(
-                                    "UPDATE scores SET pp = :pp WHERE id = :score_id",
-                                    {"pp": pp, "score_id": row["id"]},
-                                )
+                            await update_conn.execute(
+                                "UPDATE scores SET pp = :pp WHERE id = :score_id",
+                                {"pp": pp, "score_id": row["id"]},
+                            )
 
                     # leave at least 1/100th of
                     # a second for handling conns.
