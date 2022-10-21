@@ -2332,8 +2332,6 @@ async def pool_create(ctx: Context) -> Optional[str]:
 
     if app.state.sessions.pools.get_by_acronym(acronym):
         return "Pool already exists by that acronym!"
-    
-    print("Mapool Name poggers -> " + name)
 
     # insert pool into db
     await app.state.services.database.execute(
