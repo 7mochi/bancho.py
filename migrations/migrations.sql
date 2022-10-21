@@ -402,3 +402,8 @@ insert into achievements (id, file, name, `desc`, cond) values (83, 'all-intro-s
 
 # v4.4.3
 alter table favourites add created_at int default 0 not null;
+
+# v4.6.5
+alter table tourney_pools modify name varchar(64) not null;
+alter table tourney_pools add acronym varchar(16) not null;
+alter table tourney_pool_maps modify mods bigint not null;

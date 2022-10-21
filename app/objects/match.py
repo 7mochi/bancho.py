@@ -102,11 +102,13 @@ class MapPool:
         self,
         id: int,
         name: str,
+        acronym: str,
         created_at: datetime,
         created_by: Player,
     ) -> None:
         self.id = id
         self.name = name
+        self.acronym = acronym
         self.created_at = created_at
         self.created_by = created_by
 
@@ -133,7 +135,7 @@ class MapPool:
                 # NOTE: it's intentional that this removes
                 # it from not only this pool, but all pools.
                 # TODO: perhaps discord webhook?
-                log(f"Removing {map_id} from pool {self.name} (not found).", Ansi.LRED)
+                log(f"Removing {map_id} from pool {self.name} [{self.acronym}] (not found).", Ansi.LRED)
 
                 await db_conn.execute(
                     "DELETE FROM tourney_pool_maps WHERE map_id = :map_id",

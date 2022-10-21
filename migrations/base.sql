@@ -258,7 +258,7 @@ create table tourney_pool_maps
 (
 	map_id int not null,
 	pool_id int not null,
-	mods int not null,
+	mods bigint not null,
 	slot tinyint not null,
 	primary key (map_id, pool_id)
 );
@@ -270,7 +270,8 @@ create table tourney_pools
 (
 	id int auto_increment
 		primary key,
-	name varchar(16) not null,
+	name varchar(64) not null,
+	acronym varchar(16) not null,
 	created_at datetime not null,
 	created_by int not null
 );
