@@ -24,7 +24,6 @@ class MappoolMods(IntFlag):
     FREEMODS = 1 << 31
     TIEBREAKER = 1 << 32
 
-    @functools.cache
     def __repr__(self) -> str:
         if self.value == MappoolMods.NOMOD:
             return "NM"

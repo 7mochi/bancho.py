@@ -2279,7 +2279,7 @@ async def mp_pick(ctx: Context, match: Match) -> Optional[str]:
     match.map_name = bmap.full_name
 
     # TODO: Improve this spaghetti code
-    if mods == MappoolMods.FREEMODS or mods == MappoolMods.TIEBREAKER:
+    if mods in (MappoolMods.FREEMODS, MappoolMods.TIEBREAKER):
         match.freemods = True
     else:
         match.freemods = False
