@@ -355,7 +355,7 @@ class MapPools(list[MapPool]):
     ) -> Union[MapPool, list[MapPool]]:
         """Allow slicing by either a string (for name), or slice."""
         if isinstance(index, str):
-            return self.get_by_name(index)  # type: ignore
+            return self.get_by_acronym(index)  # type: ignore
         else:
             return super().__getitem__(index)
 
@@ -386,10 +386,10 @@ class MapPools(list[MapPool]):
         else:
             return o in self
 
-    def get_by_name(self, name: str) -> Optional[MapPool]:
-        """Get a pool from the list by `name`."""
+    def get_by_acronym(self, acronym: str) -> Optional[MapPool]:
+        """Get a pool from the list by `acronym`."""
         for p in self:
-            if p.name == name:
+            if p.acronym == acronym:
                 return p
 
         return None
@@ -427,6 +427,7 @@ class MapPools(list[MapPool]):
 
             pool = MapPool(
                 id=row["id"],
+                acronym=row["acronym"],
                 name=row["name"],
                 created_at=row["created_at"],
                 created_by=created_by,

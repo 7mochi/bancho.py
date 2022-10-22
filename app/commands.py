@@ -46,6 +46,7 @@ from app.constants import regexes
 from app.constants.gamemodes import GameMode
 from app.constants.gamemodes import GAMEMODE_REPR_LIST
 from app.constants.mods import Mods
+from app.constants.mappool_mods import MappoolMods
 from app.constants.mods import SPEED_CHANGING_MODS
 from app.constants.privileges import ClanPrivileges
 from app.constants.privileges import Privileges
@@ -2158,7 +2159,7 @@ async def mp_loadpool(ctx: Context, match: Match) -> Optional[str]:
 
     name = ctx.args[0]
 
-    if not (pool := app.state.sessions.pools.get_by_name(name)):
+    if not (pool := app.state.sessions.pools.get_by_acronym(name)):
         return "Could not find a pool by that name!"
 
     if match.pool is pool:
@@ -2202,7 +2203,7 @@ async def mp_ban(ctx: Context, match: Match) -> Optional[str]:
         return "Invalid pick syntax; correct example: HD2"
 
     # not calling mods.filter_invalid_combos here intentionally.
-    mods = Mods.from_modstr(r_match[1])
+    mods = MappoolMods.from_modstr(r_match[1])
     slot = int(r_match[2])
 
     if (mods, slot) not in match.pool.maps:
@@ -2232,7 +2233,7 @@ async def mp_unban(ctx: Context, match: Match) -> Optional[str]:
         return "Invalid pick syntax; correct example: HD2"
 
     # not calling mods.filter_invalid_combos here intentionally.
-    mods = Mods.from_modstr(r_match[1])
+    mods = MappoolMods.from_modstr(r_match[1])
     slot = int(r_match[2])
 
     if (mods, slot) not in match.pool.maps:
@@ -2262,7 +2263,7 @@ async def mp_pick(ctx: Context, match: Match) -> Optional[str]:
         return "Invalid pick syntax; correct example: HD2"
 
     # not calling mods.filter_invalid_combos here intentionally.
-    mods = Mods.from_modstr(r_match[1])
+    mods = MappoolMods.from_modstr(r_match[1])
     slot = int(r_match[2])
 
     if (mods, slot) not in match.pool.maps:
@@ -2277,17 +2278,19 @@ async def mp_pick(ctx: Context, match: Match) -> Optional[str]:
     match.map_id = bmap.id
     match.map_name = bmap.full_name
 
-    # TODO: some kind of abstraction allowing
-    # for something like !mp pick fm.
-    if match.freemods:
-        # if freemods are enabled, disable them.
+    # TODO: Improve this spaghetti code
+    if mods in (MappoolMods.FREEMODS, MappoolMods.TIEBREAKER):
+        match.freemods = True
+    else:
         match.freemods = False
-
-        for s in match.slots:
-            if s.status & SlotStatus.has_player:
-                s.mods = Mods.NOMOD
+    
+    # Cleaning previously used mods
+    for s in match.slots:
+        if s.status & SlotStatus.has_player:
+            s.mods = MappoolMods.NOMOD
 
     # update match mods to the picked map.
+    mods = mods.filter_tournament_mods()
     match.mods = mods
 
     match.enqueue_state()
@@ -2321,26 +2324,27 @@ async def pool_help(ctx: Context) -> Optional[str]:
 @pool_commands.add(Privileges.TOURNEY_MANAGER, aliases=["c"], hidden=True)
 async def pool_create(ctx: Context) -> Optional[str]:
     """Add a new mappool to the database."""
-    if len(ctx.args) != 1:
-        return "Invalid syntax: !pool create <name>"
+    if len(ctx.args) < 2:
+        return "Invalid syntax: !pool create <acronym> <name>"
 
-    name = ctx.args[0]
+    acronym = ctx.args[0]
+    name = " ".join(ctx.args[1:])
 
-    if app.state.sessions.pools.get_by_name(name):
-        return "Pool already exists by that name!"
+    if app.state.sessions.pools.get_by_acronym(acronym):
+        return "Pool already exists by that acronym!"
 
     # insert pool into db
     await app.state.services.database.execute(
         "INSERT INTO tourney_pools "
-        "(name, created_at, created_by) "
-        "VALUES (:name, NOW(), :user_id)",
-        {"name": name, "user_id": ctx.player.id},
+        "(acronym, name, created_at, created_by) "
+        "VALUES (:acronym, :name, NOW(), :user_id)",
+        {"acronym": acronym, "name": name, "user_id": ctx.player.id},
     )
 
     # add to cache (get from sql for id & time)
     row = await app.state.services.database.fetch_one(
-        "SELECT * FROM tourney_pools WHERE name = :name",
-        {"name": name},
+        "SELECT * FROM tourney_pools WHERE acronym = :acronym",
+        {"acronym": acronym},
     )
     assert row is not None
 
@@ -2352,19 +2356,19 @@ async def pool_create(ctx: Context) -> Optional[str]:
 
     app.state.sessions.pools.append(MapPool(**row))
 
-    return f"{name} created."
+    return f"{name} [{acronym}] created."
 
 
 @pool_commands.add(Privileges.TOURNEY_MANAGER, aliases=["del", "d"], hidden=True)
 async def pool_delete(ctx: Context) -> Optional[str]:
     """Remove a mappool from the database."""
     if len(ctx.args) != 1:
-        return "Invalid syntax: !pool delete <name>"
+        return "Invalid syntax: !pool delete <acronym>"
 
-    name = ctx.args[0]
+    acronym = ctx.args[0]
 
-    if not (pool := app.state.sessions.pools.get_by_name(name)):
-        return "Could not find a pool by that name!"
+    if not (pool := app.state.sessions.pools.get_by_acronym(acronym)):
+        return "Could not find a pool by that acronym!"
 
     # delete from db
     await app.state.services.database.execute(
@@ -2380,19 +2384,19 @@ async def pool_delete(ctx: Context) -> Optional[str]:
     # remove from cache
     app.state.sessions.pools.remove(pool)
 
-    return f"{name} deleted."
+    return f"{acronym} deleted."
 
 
 @pool_commands.add(Privileges.TOURNEY_MANAGER, aliases=["a"], hidden=True)
 async def pool_add(ctx: Context) -> Optional[str]:
     """Add a new map to a mappool in the database."""
     if len(ctx.args) != 2:
-        return "Invalid syntax: !pool add <name> <pick>"
+        return "Invalid syntax: !pool add <acronym> <pick>"
 
     if time.time() >= ctx.player.last_np["timeout"]:
         return "Please /np a map first!"
 
-    name, mods_slot = ctx.args
+    acronym, mods_slot = ctx.args
     mods_slot = mods_slot.upper()  # ocd
     bmap = ctx.player.last_np["bmap"]
 
@@ -2403,12 +2407,12 @@ async def pool_add(ctx: Context) -> Optional[str]:
     if len(r_match[1]) % 2 != 0:
         return "Invalid mods."
 
-    # not calling mods.filter_invalid_combos here intentionally.
-    mods = Mods.from_modstr(r_match[1])
+    # not calling mods.filter_tournament_mods here intentionally.
+    mods = MappoolMods.from_modstr(r_match[1])
     slot = int(r_match[2])
 
-    if not (pool := app.state.sessions.pools.get_by_name(name)):
-        return "Could not find a pool by that name!"
+    if not (pool := app.state.sessions.pools.get_by_acronym(acronym)):
+        return "Could not find a pool by that acronym!"
 
     if (mods, slot) in pool.maps:
         return f"{mods_slot} is already {pool.maps[(mods, slot)].embed}!"
@@ -2427,16 +2431,16 @@ async def pool_add(ctx: Context) -> Optional[str]:
     # add to cache
     pool.maps[(mods, slot)] = bmap
 
-    return f"{bmap.embed} added to {name}."
+    return f"{bmap.embed} added to {acronym}."
 
 
 @pool_commands.add(Privileges.TOURNEY_MANAGER, aliases=["rm", "r"], hidden=True)
 async def pool_remove(ctx: Context) -> Optional[str]:
     """Remove a map from a mappool in the database."""
     if len(ctx.args) != 2:
-        return "Invalid syntax: !pool remove <name> <pick>"
+        return "Invalid syntax: !pool remove <acronym> <pick>"
 
-    name, mods_slot = ctx.args
+    acronym, mods_slot = ctx.args
     mods_slot = mods_slot.upper()  # ocd
 
     # separate mods & slot
@@ -2444,11 +2448,11 @@ async def pool_remove(ctx: Context) -> Optional[str]:
         return "Invalid pick syntax; correct example: HD2"
 
     # not calling mods.filter_invalid_combos here intentionally.
-    mods = Mods.from_modstr(r_match[1])
+    mods = MappoolMods.from_modstr(r_match[1])
     slot = int(r_match[2])
 
-    if not (pool := app.state.sessions.pools.get_by_name(name)):
-        return "Could not find a pool by that name!"
+    if not (pool := app.state.sessions.pools.get_by_acronym(acronym)):
+        return "Could not find a pool by that acronym!"
 
     if (mods, slot) not in pool.maps:
         return f"Found no {mods_slot} pick in the pool."
@@ -2462,7 +2466,7 @@ async def pool_remove(ctx: Context) -> Optional[str]:
     # remove from cache
     del pool.maps[(mods, slot)]
 
-    return f"{mods_slot} removed from {name}."
+    return f"{mods_slot} removed from {acronym}."
 
 
 @pool_commands.add(Privileges.TOURNEY_MANAGER, aliases=["l"], hidden=True)
@@ -2471,27 +2475,37 @@ async def pool_list(ctx: Context) -> Optional[str]:
     if not (pools := app.state.sessions.pools):
         return "There are currently no pools!"
 
+    paginated_pools = list(app.utils.paginate_list(pools, 10))
+
+    page = int(ctx.args[0]) if len(ctx.args) != 0 else 1
+
+    if page > len(paginated_pools):
+        return "You have selected an invalid page!"
+
     l = [f"Mappools ({len(pools)})"]
 
-    for pool in pools:
+    for pool in paginated_pools[page - 1]:
         l.append(
-            f"[{pool.created_at:%Y-%m-%d}] {pool.id}. "
-            f"{pool.name}, by {pool.created_by}.",
+            f"[{pool.created_at:%Y-%m-%d}] {pool.id}. {pool.name} "
+            f"[{pool.acronym}], by {pool.created_by}.",
         )
 
-    return "\n".join(l)
+    msg = "\n".join(l)
+    msg = f"{msg}\nShowing page {page}/{len(paginated_pools)}";
+
+    return msg
 
 
 @pool_commands.add(Privileges.TOURNEY_MANAGER, aliases=["i"], hidden=True)
 async def pool_info(ctx: Context) -> Optional[str]:
     """Get all information for a specific mappool."""
     if len(ctx.args) != 1:
-        return "Invalid syntax: !pool info <name>"
+        return "Invalid syntax: !pool info <acronym>"
 
-    name = ctx.args[0]
+    acronym = ctx.args[0]
 
-    if not (pool := app.state.sessions.pools.get_by_name(name)):
-        return "Could not find a pool by that name!"
+    if not (pool := app.state.sessions.pools.get_by_acronym(acronym)):
+        return "Could not find a pool by that acronym!"
 
     _time = pool.created_at.strftime("%H:%M:%S%p")
     _date = pool.created_at.strftime("%Y-%m-%d")

@@ -3,6 +3,7 @@ from __future__ import annotations
 import inspect
 import io
 import ipaddress
+import itertools
 import os
 import shutil
 import socket
@@ -353,6 +354,16 @@ def escape_enum(
     _: Optional[dict[object, object]] = None,
 ) -> str:  # used for ^
     return str(int(val))
+
+
+def paginate_list(iterable, page_size):
+    while True:
+        i1, i2 = itertools.tee(iterable)
+        iterable, page = (itertools.islice(i1, page_size, None),
+                list(itertools.islice(i2, page_size)))
+        if len(page) == 0:
+            break
+        yield page
 
 
 def ensure_supported_platform() -> int:
