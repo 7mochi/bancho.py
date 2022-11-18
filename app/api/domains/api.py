@@ -14,6 +14,7 @@ from fastapi.param_functions import Depends
 from fastapi.param_functions import Query
 from fastapi.responses import ORJSONResponse
 from fastapi.responses import StreamingResponse
+from fastapi.responses import Response
 
 import app.packets
 import app.state
@@ -754,8 +755,8 @@ async def api_get_replay(
     # can't submit scores so should not be a problem.
 
     # stream data back to the client
-    return StreamingResponse(
-        replay_data,
+    return Response(
+        bytes(replay_data),
         media_type="application/octet-stream",
         headers={
             "Content-Description": "File Transfer",
