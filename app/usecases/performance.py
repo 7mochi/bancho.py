@@ -7,7 +7,7 @@ from typing import TypedDict
 from peace_performance_python.objects import Beatmap as PeaceMap
 from peace_performance_python.objects import Calculator as PeaceCalculator
 
-from rosu_pp_py import Calculator, ScoreParams
+from rosu_pp_py import Beatmap, Calculator
 class DifficultyRating(TypedDict):
     performance: float
     star_rating: float
@@ -31,20 +31,23 @@ def calculate_performances_std(
 ) -> list[DifficultyRating]:
     results: list[DifficultyRating] = []
 
-    calculator = Calculator(osu_file_path)
-
+    map = Beatmap(path = osu_file_path)
     for score in scores:
         mods = score["mods"] if score["mods"] != None else 0
         acc = score["acc"] if score["acc"] != None else 100.00
         nmisses = score["nmiss"] if score["nmiss"] != None else 0
         combo = score["combo"]
 
-        params = ScoreParams(mods = mods, acc = acc, nMisses = nmisses, combo = combo)
+        calculator = Calculator(mods = mods)
+        calculator.set_acc(acc)
+        calculator.set_n_misses(nmisses)
+        if (combo != None):
+            calculator.set_combo(combo)
 
-        [result] = calculator.calculate(params)
+        result = calculator.performance(map)
 
         pp = result.pp
-        sr = result.stars
+        sr = result.difficulty.stars
 
         if math.isnan(pp) or math.isinf(pp):
             # TODO: report to logserver

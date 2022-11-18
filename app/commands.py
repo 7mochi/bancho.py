@@ -66,7 +66,7 @@ from app.usecases.performance import ScoreDifficultyParams
 from app.utils import make_safe_name
 from app.utils import seconds_readable
 
-from rosu_pp_py import Calculator, ScoreParams
+from rosu_pp_py import Beatmap, Calculator
 
 if TYPE_CHECKING:
     from app.objects.channel import Channel
@@ -1229,7 +1229,8 @@ async def recalc(ctx: Context) -> Optional[str]:
         ):
 
             # ezpp.set_mode(9)  # TODO: other gamemodes
-            calculator = Calculator(str(osu_file_path))
+            map = Beatmap(path = str(osu_file_path))
+            calculator = Calculator(mods = row["mods"])
             for mode in (0, 4, 8):  # vn!std, rx!std, ap!std
                 # TODO: this should be using an async generator
                 for row in await score_select_conn.fetch_all(
@@ -1238,9 +1239,11 @@ async def recalc(ctx: Context) -> Optional[str]:
                     "WHERE map_md5 = :map_md5 AND mode = :mode",
                     {"map_md5": bmap.md5, "mode": mode},
                 ):
-                    params = ScoreParams(mods = row["mods"], acc = row["acc"], nMisses = row["nmiss"], combo = row["max_combo"])
+                    calculator.set_acc(row["acc"])
+                    calculator.set_n_misses(row["nmiss"])
+                    calculator.set_combo(row["max_combo"])
                     
-                    [result] = calculator.calculate(params)
+                    result = calculator.performance(map)
 
                     pp = result.pp
 
@@ -1285,7 +1288,7 @@ async def recalc(ctx: Context) -> Optional[str]:
                         continue
 
                     # ezpp.set_mode(9)  # TODO: other gamemodes
-                    calculator = Calculator(str(osu_file_path))
+                    map = Beatmap(path = str(osu_file_path))
                     for mode in (0, 4, 8):  # vn!std, rx!std, ap!std
                         # TODO: this should be using an async generator
                         for row in await score_select_conn.fetch_all(
@@ -1294,9 +1297,12 @@ async def recalc(ctx: Context) -> Optional[str]:
                             "WHERE map_md5 = :map_md5 AND mode = :mode",
                             {"map_md5": bmap_md5, "mode": mode},
                         ):
-                            params = ScoreParams(mods = row["mods"], acc = row["acc"], nMisses = row["nmiss"], combo = row["max_combo"])
+                            calculator = Calculator(mods = row["mods"])
+                            calculator.set_acc(row["acc"])
+                            calculator.set_n_misses(row["nmiss"])
+                            calculator.set_combo(row["max_combo"])
 
-                            [result] = calculator.calculate(params)
+                            result = calculator.performance(map)
 
                             pp = result.pp
 
