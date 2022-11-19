@@ -1230,7 +1230,6 @@ async def recalc(ctx: Context) -> Optional[str]:
 
             # ezpp.set_mode(9)  # TODO: other gamemodes
             map = Beatmap(path = str(osu_file_path))
-            calculator = Calculator(mods = row["mods"])
             for mode in (0, 4, 8):  # vn!std, rx!std, ap!std
                 # TODO: this should be using an async generator
                 for row in await score_select_conn.fetch_all(
@@ -1239,6 +1238,7 @@ async def recalc(ctx: Context) -> Optional[str]:
                     "WHERE map_md5 = :map_md5 AND mode = :mode",
                     {"map_md5": bmap.md5, "mode": mode},
                 ):
+                    calculator = Calculator(mods = row["mods"])
                     calculator.set_acc(row["acc"])
                     calculator.set_n_misses(row["nmiss"])
                     calculator.set_combo(row["max_combo"])
