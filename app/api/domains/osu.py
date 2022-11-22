@@ -510,7 +510,7 @@ async def osuSearchHandler(
         result = await resp.json()
 
         if USING_CHIMU:
-            if result["code"] != 0:
+            if result["code"] != 200:
                 return b"-1\nFailed to retrieve data from the beatmap mirror."
 
             result = result["data"]
