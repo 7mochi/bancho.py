@@ -38,6 +38,7 @@ from pytimeparse.timeparse import timeparse
 
 import app.logging
 import app.packets
+import app.pycord
 import app.settings
 import app.state
 import app.usecases.performance
@@ -710,6 +711,9 @@ async def _map(ctx: Context) -> Optional[str]:
                 )
             ]
 
+            if webhook_url := app.settings.DISCORD_BEATMAP_UPDATES_WEBHOOK:
+                await app.pycord.send_beatmapset_status_change(webhook_url, app.state.cache.beatmapset[bmap.set_id], new_status, player_info=ctx.player)
+
             for bmap in app.state.cache.beatmapset[bmap.set_id].maps:
                 bmap.status = new_status
 
@@ -723,6 +727,9 @@ async def _map(ctx: Context) -> Optional[str]:
             map_ids = [bmap.id]
 
             if bmap.md5 in app.state.cache.beatmap:
+                if webhook_url := app.settings.DISCORD_BEATMAP_UPDATES_WEBHOOK:
+                    await app.pycord.send_beatmap_status_change(webhook_url, app.state.cache.beatmap[bmap.md5], new_status, player_info=ctx.player)
+
                 app.state.cache.beatmap[bmap.md5].status = new_status
 
         # deactivate rank requests for all ids
