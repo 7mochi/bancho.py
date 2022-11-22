@@ -585,6 +585,17 @@ class BeatmapSet:
     def url(self) -> str:  # same as above, just no beatmap id
         """The online url for this beatmap set."""
         return f"https://osu.{app.settings.DOMAIN}/beatmapsets/{self.id}"
+    
+    @property
+    def as_dict(self) -> dict[str, object]:
+        maps = []
+        for map in self.maps:
+            maps.append(map.as_dict)
+
+        return {
+            "id": self.id,
+            "maps": maps
+        }
 
     def all_officially_ranked_or_approved(self) -> bool:
         """Whether all of the maps in the set are
