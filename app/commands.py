@@ -1243,7 +1243,8 @@ async def recalc(ctx: Context) -> Optional[str]:
             for mode in GameMode.valid_gamemodes():
                 # TODO: this should be using an async generator
                 for row in await score_select_conn.fetch_all(
-                    "SELECT id, acc, mods, max_combo, nmiss "
+                    "SELECT id, acc, mods, max_combo, nmiss,"
+                    "n300, n100, n50, ngeki, nkatu "
                     "FROM scores "
                     "WHERE map_md5 = :map_md5 AND mode = :mode",
                     {"map_md5": bmap.md5, "mode": mode},
@@ -1279,9 +1280,9 @@ async def recalc(ctx: Context) -> Optional[str]:
                     # Mania
                     elif (mode == GameMode.VANILLA_MANIA):
                         calculator = Calculator(mods = row["mods"], mode = 3)
-                        calculator.set_n_geki(row["n320"])
+                        calculator.set_n_geki(row["ngeki"])
                         calculator.set_n300(row["n300"])
-                        calculator.set_n_katu(row["n200"])
+                        calculator.set_n_katu(row["nkatu"])
                         calculator.set_n100(row["n100"])
                         calculator.set_n50(row["n50"])
                         calculator.set_n_misses(row["nmiss"])
@@ -1335,7 +1336,8 @@ async def recalc(ctx: Context) -> Optional[str]:
                     for mode in GameMode.valid_gamemodes():
                         # TODO: this should be using an async generator
                         for row in await score_select_conn.fetch_all(
-                            "SELECT id, acc, mods, max_combo, nmiss "
+                            "SELECT id, acc, mods, max_combo, nmiss, "
+                            "n300, n100, n50, ngeki, nkatu "
                             "FROM scores "
                             "WHERE map_md5 = :map_md5 AND mode = :mode",
                             {"map_md5": bmap_md5, "mode": mode},
@@ -1352,7 +1354,7 @@ async def recalc(ctx: Context) -> Optional[str]:
                                 elif (mode in (GameMode.VANILLA_CATCH, GameMode.RELAX_CATCH)):
                                     modeInt = 2
 
-                                calculator = Calculator(mods = row["mods"])
+                                calculator = Calculator(mods = row["mods"], mode = modeInt)
                                 calculator.set_acc(row["acc"])
                                 calculator.set_n_misses(row["nmiss"])
                                 calculator.set_combo(row["max_combo"])
@@ -1371,9 +1373,9 @@ async def recalc(ctx: Context) -> Optional[str]:
                             # Mania
                             elif (mode == GameMode.VANILLA_MANIA):
                                 calculator = Calculator(mods = row["mods"], mode = 3)
-                                calculator.set_n_geki(row["n320"])
+                                calculator.set_n_geki(row["ngeki"])
                                 calculator.set_n300(row["n300"])
-                                calculator.set_n_katu(row["n200"])
+                                calculator.set_n_katu(row["nkatu"])
                                 calculator.set_n100(row["n100"])
                                 calculator.set_n50(row["n50"])
                                 calculator.set_n_misses(row["nmiss"])
