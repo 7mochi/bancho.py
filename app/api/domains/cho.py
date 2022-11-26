@@ -1160,8 +1160,8 @@ class SendPrivateMessage(BasePacket):
                                 ]
                             else:  # mode_vn == 3
                                 scores: list[ScoreDifficultyParams] = [
-                                    {"score": score}
-                                    for score in app.settings.PP_CACHED_SCORES
+                                    {"acc": acc}
+                                    for acc in app.settings.PP_CACHED_ACCURACIES
                                 ]
 
                             results = app.usecases.performance.calculate_performances(
@@ -1179,11 +1179,16 @@ class SendPrivateMessage(BasePacket):
                                         results,
                                     )
                                 )
-                            else:  # mode_vn == 3
+                            # mode_vn == 3
+                            # Even though it's now the same logic
+                            # for all gamemodes, I'll keep it separate
+                            # in case the cached values for mania
+                            # need to be changed in the future
+                            else:  
                                 resp_msg = " | ".join(
-                                    f"{score // 1000:.0f}k: {result['performance']:,.2f}pp"
-                                    for score, result in zip(
-                                        app.settings.PP_CACHED_SCORES,
+                                    f"{acc}%: {result['performance']:,.2f}pp"
+                                    for acc, result in zip(
+                                        app.settings.PP_CACHED_ACCURACIES,
                                         results,
                                     )
                                 )
