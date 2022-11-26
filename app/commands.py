@@ -489,26 +489,30 @@ def parse__with__command_args(
         }
     else:  # mode == 4
         if not args or len(args) > 2:
-            return ParsingError("Invalid syntax: !with <score/mods ...>")
+            return ParsingError("Invalid syntax: !with <acc/mods ...>")
 
-        score = 1000
-        mods = Mods.NOMOD
+        acc = mods = None
 
-        for param in (p.strip("+k") for p in args):
-            if param.isdecimal():  # acc
-                if not 0 <= (score := int(param)) <= 1000:
-                    return ParsingError("Invalid score.")
-                if score <= 500:
-                    return ParsingError("<=500k score is always 0pp.")
-            elif len(param) % 2 == 0:
-                mods = Mods.from_modstr(param)
+        # Parse acc and mods from arguments.
+        for arg in [str.lower(arg) for arg in args]:
+            arg_stripped = arg.removeprefix("+").removesuffix("%")
+            if (
+                mods is None
+                and arg_stripped.isalpha()
+                and len(arg_stripped) % 2 == 0
+            ):
+                mods = Mods.from_modstr(arg_stripped)
                 mods = mods.filter_invalid_combos(mode)
+            elif acc is None and arg_stripped.replace(".", "", 1).isdecimal():
+                acc = float(arg_stripped)
+                if not 0 <= acc <= 100:
+                    return ParsingError("Invalid accuracy.")
             else:
-                return ParsingError("Invalid syntax: !with <score/mods ...>")
+                return ParsingError(f"Unknown argument: {arg}")
 
         return {
             "mods": mods,
-            "score": score,
+            "acc": acc,
         }
 
 
@@ -556,9 +560,9 @@ async def _with(ctx: Context) -> Optional[str]:
             msg_fields.append(f"{acc:.2f}%")
 
     else:  # mode_vn == 3
-        if (score := command_args["score"]) is not None:
-            score_args["score"] = score * 1000
-            msg_fields.append(f"{score}k")
+        if (acc := command_args["acc"]) is not None:
+            score_args["acc"] = acc
+            msg_fields.append(f"{acc:.2f}%")
 
     result = app.usecases.performance.calculate_performances(
         osu_file_path=str(osu_file_path),
@@ -1235,32 +1239,65 @@ async def recalc(ctx: Context) -> Optional[str]:
             app.state.services.database.connection() as update_conn,
         ):
 
-            # ezpp.set_mode(9)  # TODO: other gamemodes
             map = Beatmap(path = str(osu_file_path))
-            for mode in (0, 4, 8):  # vn!std, rx!std, ap!std
+            for mode in GameMode.valid_gamemodes():
                 # TODO: this should be using an async generator
                 for row in await score_select_conn.fetch_all(
-                    "SELECT id, acc, mods, max_combo, nmiss "
+                    "SELECT id, acc, mods, max_combo, nmiss,"
+                    "n300, n100, n50, ngeki, nkatu "
                     "FROM scores "
                     "WHERE map_md5 = :map_md5 AND mode = :mode",
                     {"map_md5": bmap.md5, "mode": mode},
                 ):
-                    calculator = Calculator(mods = row["mods"])
-                    calculator.set_acc(row["acc"])
-                    calculator.set_n_misses(row["nmiss"])
-                    calculator.set_combo(row["max_combo"])
-                    
-                    result = calculator.performance(map)
+                    # Standard, taiko and catch
+                    if (mode in 
+                        (GameMode.VANILLA_OSU, GameMode.RELAX_OSU, GameMode.AUTOPILOT_OSU, 
+                        GameMode.VANILLA_TAIKO, GameMode.RELAX_TAIKO, 
+                        GameMode.VANILLA_CATCH, GameMode.RELAX_CATCH)):
+                        
+                        modeInt = 0
+                        if (mode in (GameMode.VANILLA_TAIKO, GameMode.RELAX_TAIKO)):
+                            modeInt = 1
+                        elif (mode in (GameMode.VANILLA_CATCH, GameMode.RELAX_CATCH)):
+                            modeInt = 2
+                        
+                        calculator = Calculator(mods = row["mods"], mode = modeInt)
+                        calculator.set_acc(row["acc"])
+                        calculator.set_n_misses(row["nmiss"])
+                        calculator.set_combo(row["max_combo"])
 
-                    pp = result.pp
+                        result = calculator.performance(map)
 
-                    if math.isinf(pp) or math.isnan(pp):
-                        continue
+                        pp = result.pp
 
-                    await update_conn.execute(
-                        "UPDATE scores SET pp = :pp WHERE id = :score_id",
-                        {"pp": pp, "score_id": row["id"]},
-                    )
+                        if math.isinf(pp) or math.isnan(pp):
+                            continue
+
+                        await update_conn.execute(
+                            "UPDATE scores SET pp = :pp WHERE id = :score_id",
+                            {"pp": pp, "score_id": row["id"]},
+                        )
+                    # Mania
+                    elif (mode == GameMode.VANILLA_MANIA):
+                        calculator = Calculator(mods = row["mods"], mode = 3)
+                        calculator.set_n_geki(row["ngeki"])
+                        calculator.set_n300(row["n300"])
+                        calculator.set_n_katu(row["nkatu"])
+                        calculator.set_n100(row["n100"])
+                        calculator.set_n50(row["n50"])
+                        calculator.set_n_misses(row["nmiss"])
+
+                        result = calculator.performance(map)
+
+                        pp = result.pp
+
+                        if math.isinf(pp) or math.isnan(pp):
+                            continue
+
+                        await update_conn.execute(
+                            "UPDATE scores SET pp = :pp WHERE id = :score_id",
+                            {"pp": pp, "score_id": row["id"]},
+                        )
 
         return "Map recalculated."
     else:
@@ -1296,30 +1333,64 @@ async def recalc(ctx: Context) -> Optional[str]:
 
                     # ezpp.set_mode(9)  # TODO: other gamemodes
                     map = Beatmap(path = str(osu_file_path))
-                    for mode in (0, 4, 8):  # vn!std, rx!std, ap!std
+                    for mode in GameMode.valid_gamemodes():
                         # TODO: this should be using an async generator
                         for row in await score_select_conn.fetch_all(
-                            "SELECT id, acc, mods, max_combo, nmiss "
+                            "SELECT id, acc, mods, max_combo, nmiss, "
+                            "n300, n100, n50, ngeki, nkatu "
                             "FROM scores "
                             "WHERE map_md5 = :map_md5 AND mode = :mode",
                             {"map_md5": bmap_md5, "mode": mode},
                         ):
-                            calculator = Calculator(mods = row["mods"])
-                            calculator.set_acc(row["acc"])
-                            calculator.set_n_misses(row["nmiss"])
-                            calculator.set_combo(row["max_combo"])
+                            # Standard, taiko and catch
+                            if (mode in 
+                                (GameMode.VANILLA_OSU, GameMode.RELAX_OSU, GameMode.AUTOPILOT_OSU, 
+                                GameMode.VANILLA_TAIKO, GameMode.RELAX_TAIKO, 
+                                GameMode.VANILLA_CATCH, GameMode.RELAX_CATCH)):
 
-                            result = calculator.performance(map)
+                                modeInt = 0
+                                if (mode in (GameMode.VANILLA_TAIKO, GameMode.RELAX_TAIKO)):
+                                    modeInt = 1
+                                elif (mode in (GameMode.VANILLA_CATCH, GameMode.RELAX_CATCH)):
+                                    modeInt = 2
 
-                            pp = result.pp
+                                calculator = Calculator(mods = row["mods"], mode = modeInt)
+                                calculator.set_acc(row["acc"])
+                                calculator.set_n_misses(row["nmiss"])
+                                calculator.set_combo(row["max_combo"])
 
-                            if math.isinf(pp) or math.isnan(pp):
-                                continue
+                                result = calculator.performance(map)
 
-                            await update_conn.execute(
-                                "UPDATE scores SET pp = :pp WHERE id = :score_id",
-                                {"pp": pp, "score_id": row["id"]},
-                            )
+                                pp = result.pp
+
+                                if math.isinf(pp) or math.isnan(pp):
+                                    continue
+
+                                await update_conn.execute(
+                                    "UPDATE scores SET pp = :pp WHERE id = :score_id",
+                                    {"pp": pp, "score_id": row["id"]},
+                                )
+                            # Mania
+                            elif (mode == GameMode.VANILLA_MANIA):
+                                calculator = Calculator(mods = row["mods"], mode = 3)
+                                calculator.set_n_geki(row["ngeki"])
+                                calculator.set_n300(row["n300"])
+                                calculator.set_n_katu(row["nkatu"])
+                                calculator.set_n100(row["n100"])
+                                calculator.set_n50(row["n50"])
+                                calculator.set_n_misses(row["nmiss"])
+
+                                result = calculator.performance(map)
+
+                                pp = result.pp
+
+                                if math.isinf(pp) or math.isnan(pp):
+                                    continue
+
+                                await update_conn.execute(
+                                    "UPDATE scores SET pp = :pp WHERE id = :score_id",
+                                    {"pp": pp, "score_id": row["id"]},
+                                )
 
                     # leave at least 1/100th of
                     # a second for handling conns.

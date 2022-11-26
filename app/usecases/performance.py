@@ -70,25 +70,25 @@ def calculate_performances_taiko(
     osu_file_path: str,
     scores: list[StdTaikoCatchScore],
 ) -> list[DifficultyRating]:
-    beatmap = PeaceMap(osu_file_path)  # type: ignore
-
     results: list[DifficultyRating] = []
 
+    map = Beatmap(path = osu_file_path)
     for score in scores:
-        calculator = PeaceCalculator(
-            {
-                "mode": 1,
-                "mods": score["mods"],
-                "acc": score["acc"],
-                "combo": score["combo"],
-                "nmiss": score["nmiss"],
-            },
-        )
+        mods = score["mods"] if score["mods"] != None else 0
+        acc = score["acc"] if score["acc"] != None else 100.00
+        nmisses = score["nmiss"] if score["nmiss"] != None else 0
+        combo = score["combo"]
 
-        result = calculator.calculate(beatmap)
+        calculator = Calculator(mods = mods, mode = 1)
+        calculator.set_acc(acc)
+        calculator.set_n_misses(nmisses)
+        if (combo != None):
+            calculator.set_combo(combo)
+
+        result = calculator.performance(map)
 
         pp = result.pp
-        sr = result.stars
+        sr = result.difficulty.stars
 
         if math.isnan(pp) or math.isinf(pp):
             # TODO: report to logserver
@@ -111,25 +111,25 @@ def calculate_performances_catch(
     osu_file_path: str,
     scores: list[StdTaikoCatchScore],
 ) -> list[DifficultyRating]:
-    beatmap = PeaceMap(osu_file_path)  # type: ignore
-
     results: list[DifficultyRating] = []
 
+    map = Beatmap(path = osu_file_path)
     for score in scores:
-        calculator = PeaceCalculator(
-            {
-                "mode": 2,
-                "mods": score["mods"],
-                "acc": score["acc"],
-                "combo": score["combo"],
-                "nmiss": score["nmiss"],
-            },
-        )
+        mods = score["mods"] if score["mods"] != None else 0
+        acc = score["acc"] if score["acc"] != None else 100.00
+        nmisses = score["nmiss"] if score["nmiss"] != None else 0
+        combo = score["combo"]
 
-        result = calculator.calculate(beatmap)
+        calculator = Calculator(mods = mods, mode = 2)
+        calculator.set_acc(acc)
+        calculator.set_n_misses(nmisses)
+        if (combo != None):
+            calculator.set_combo(combo)
+
+        result = calculator.performance(map)
 
         pp = result.pp
-        sr = result.stars
+        sr = result.difficulty.stars
 
         if math.isnan(pp) or math.isinf(pp):
             # TODO: report to logserver
@@ -152,23 +152,28 @@ def calculate_performances_mania(
     osu_file_path: str,
     scores: list[ManiaScore],
 ) -> list[DifficultyRating]:
-    beatmap = PeaceMap(osu_file_path)  # type: ignore
-
     results: list[DifficultyRating] = []
 
+    map = Beatmap(path = osu_file_path)
     for score in scores:
-        calculator = PeaceCalculator(
-            {
-                "mode": 3,
-                "mods": score["mods"],
-                "score": score["score"],
-            },
-        )
+        mods = score["mods"] if score["mods"] != None else 0
+        acc = score["acc"] if score["acc"] != None else 100.00
+        
+        calculator = Calculator(mods = mods, mode = 3)
+        if (acc != None):
+            calculator.set_acc(acc)
+        else:
+            calculator.set_n_geki(score["n320"])
+            calculator.set_n300(score["n300"])
+            calculator.set_n_katu(score["n200"])
+            calculator.set_n100(score["n100"])
+            calculator.set_n50(score["n50"])
+            calculator.set_n_misses(score["nmiss"])
 
-        result = calculator.calculate(beatmap)
+        result = calculator.performance(map)
 
         pp = result.pp
-        sr = result.stars
+        sr = result.difficulty.stars
 
         if math.isnan(pp) or math.isinf(pp):
             # TODO: report to logserver
@@ -194,7 +199,13 @@ class ScoreDifficultyParams(TypedDict, total=False):
     nmiss: int
 
     # mania
-    score: int
+    acc: float
+    n320: int
+    n300: int
+    n200: int
+    n100: int
+    n50: int
+    nmiss: int
 
 
 def calculate_performances(
@@ -234,7 +245,13 @@ def calculate_performances(
         mania_scores: list[ManiaScore] = [
             {
                 "mods": mods,
-                "score": score.get("score"),
+                "acc": score.get("acc"),
+                "n320": score.get("n320"),
+                "n300": score.get("n300"),
+                "n200": score.get("n200"),
+                "n100": score.get("n100"),
+                "n50": score.get("n50"),
+                "nmiss": score.get("nmiss"),
             }
             for score in scores
         ]
