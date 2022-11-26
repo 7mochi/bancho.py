@@ -4,9 +4,6 @@ import math
 from typing import Optional
 from typing import TypedDict
 
-from peace_performance_python.objects import Beatmap as PeaceMap
-from peace_performance_python.objects import Calculator as PeaceCalculator
-
 from rosu_pp_py import Beatmap, Calculator
 class DifficultyRating(TypedDict):
     performance: float
