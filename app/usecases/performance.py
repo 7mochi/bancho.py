@@ -154,7 +154,7 @@ def calculate_performances_mania(
     map = Beatmap(path = osu_file_path)
     for score in scores:
         mods = score["mods"] if score["mods"] != None else 0
-        acc = score["acc"] if score["acc"] != None else 100.00
+        acc = score["acc"]
         
         calculator = Calculator(mods = mods, mode = 3)
         if (acc != None):
