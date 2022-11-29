@@ -1105,6 +1105,47 @@ async def osuSubmitModularSelector(
 
     """ score submission charts """
 
+    if (
+        score.passed
+        and score.rank == 1
+        and score.bmap.has_leaderboard
+        and not score.player.restrict
+    ):
+        await db_conn.execute("DELETE FROM first_places WHERE map_md5 = :md5", {"md5": score.bmap.md5})
+        await db_conn.execute(
+            "INSERT INTO first_places "
+            "VALUES (NULL, "
+            ":map_md5, :score, :pp, :acc, "
+            ":max_combo, :mods, :n300, :n100, "
+            ":n50, :nmiss, :ngeki, :nkatu, "
+            ":grade, :status, :mode, :play_time, "
+            ":time_elapsed, :client_flags, :user_id, :perfect, "
+            ":checksum)",
+            {
+                "map_md5": score.bmap.md5,
+                "score": score.score,
+                "pp": score.pp,
+                "acc": score.acc,
+                "max_combo": score.max_combo,
+                "mods": score.mods,
+                "n300": score.n300,
+                "n100": score.n100,
+                "n50": score.n50,
+                "nmiss": score.nmiss,
+                "ngeki": score.ngeki,
+                "nkatu": score.nkatu,
+                "grade": score.grade.name,
+                "status": score.status,
+                "mode": score.mode,
+                "play_time": score.server_time,
+                "time_elapsed": score.time_elapsed,
+                "client_flags": score.client_flags,
+                "user_id": score.player.id,
+                "perfect": score.perfect,
+                "checksum": score.client_checksum,
+            },
+        )
+
     if not score.passed or score.mode >= GameMode.RELAX_OSU:
         # charts & achievements won't be shown ingame.
         ret = b"error: no"
