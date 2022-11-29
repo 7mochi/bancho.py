@@ -318,6 +318,33 @@ create table users
 		unique (safe_name)
 );
 
+create table first_places
+(
+	id int auto_increment
+		primary key,
+	map_md5 char(32) not null,
+	score int not null,
+	pp float(7,3) not null,
+	acc float(6,3) not null,
+	max_combo int not null,
+	mods int not null,
+	n300 int not null,
+	n100 int not null,
+	n50 int not null,
+	nmiss int not null,
+	ngeki int not null,
+	nkatu int not null,
+	grade varchar(2) default 'N' not null,
+	status tinyint not null,
+	mode tinyint not null,
+	play_time datetime not null,
+	time_elapsed int not null,
+	client_flags int not null,
+	userid int not null,
+	perfect tinyint(1) not null,
+	checksum char(32) not null
+);
+
 insert into users (id, name, safe_name, priv, country, silence_end, email, pw_bcrypt, creation_time, latest_activity)
 values (1, 'BanchoBot', 'banchobot', 1, 'ca', 0, 'bot@akatsuki.pw',
         '_______________________my_cool_bcrypt_______________________', UNIX_TIMESTAMP(), UNIX_TIMESTAMP());
