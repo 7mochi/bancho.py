@@ -47,43 +47,44 @@ async def main() -> int:
                         {"map_md5": map["md5"], "mode": mode}
                     )
 
-                    for score in scores:
-                        if not score:
-                            continue
+                    if not scores:
+                        continue
+                    
+                    score = scores[0]
 
-                        await insert_conn.execute(
-                            "INSERT INTO first_places "
-                            "VALUES (NULL, "
-                            ":map_md5, :score, :pp, :acc, "
-                            ":max_combo, :mods, :n300, :n100, "
-                            ":n50, :nmiss, :ngeki, :nkatu, "
-                            ":grade, :status, :mode, :play_time, "
-                            ":time_elapsed, :client_flags, :user_id, :perfect, "
-                            ":checksum)",
-                            {
-                                "map_md5": score["map_md5"],
-                                "score": score["score"],
-                                "pp": score["pp"],
-                                "acc": score["acc"],
-                                "max_combo": score["max_combo"],
-                                "mods": score["mods"],
-                                "n300": score["n300"],
-                                "n100": score["n100"],
-                                "n50": score["n50"],
-                                "nmiss": score["nmiss"],
-                                "ngeki": score["ngeki"],
-                                "nkatu": score["nkatu"],
-                                "grade": score["grade"],
-                                "status": score["status"],
-                                "mode": score["mode"],
-                                "play_time": score["play_time"],
-                                "time_elapsed": score["time_elapsed"],
-                                "client_flags": score["client_flags"],
-                                "user_id": score["userid"],
-                                "perfect": score["perfect"],
-                                "checksum": score["online_checksum"],
-                            },
-                        )
+                    await insert_conn.execute(
+                        "INSERT INTO first_places "
+                        "VALUES (NULL, "
+                        ":map_md5, :score, :pp, :acc, "
+                        ":max_combo, :mods, :n300, :n100, "
+                        ":n50, :nmiss, :ngeki, :nkatu, "
+                        ":grade, :status, :mode, :play_time, "
+                        ":time_elapsed, :client_flags, :user_id, :perfect, "
+                        ":checksum)",
+                        {
+                            "map_md5": score["map_md5"],
+                            "score": score["score"],
+                            "pp": score["pp"],
+                            "acc": score["acc"],
+                            "max_combo": score["max_combo"],
+                            "mods": score["mods"],
+                            "n300": score["n300"],
+                            "n100": score["n100"],
+                            "n50": score["n50"],
+                            "nmiss": score["nmiss"],
+                            "ngeki": score["ngeki"],
+                            "nkatu": score["nkatu"],
+                            "grade": score["grade"],
+                            "status": score["status"],
+                            "mode": score["mode"],
+                            "play_time": score["play_time"],
+                            "time_elapsed": score["time_elapsed"],
+                            "client_flags": score["client_flags"],
+                            "user_id": score["userid"],
+                            "perfect": score["perfect"],
+                            "checksum": score["online_checksum"],
+                        },
+                    )
             
             print("Finished migrating first places to the new table")
 

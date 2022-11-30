@@ -392,7 +392,7 @@ async def api_get_player_scores(
     else:
         allowed_statuses = [2, 3, 5]
         query.append("AND t.status = 2 AND b.status IN :statuses")
-        query[0].replace("FROM scores", "FROM first_places")
+        query[0] = query[0].replace("FROM scores", "FROM first_places")
         params["statuses"] = allowed_statuses
 
         if mode < 4:
