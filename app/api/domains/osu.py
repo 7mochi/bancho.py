@@ -1109,7 +1109,8 @@ async def osuSubmitModularSelector(
         score.passed
         and score.rank == 1
         and score.bmap.has_leaderboard
-        and not score.player.restrict
+        and score.status == SubmissionStatus.BEST
+        and not score.player.restricted
     ):
         await db_conn.execute("DELETE FROM first_places WHERE map_md5 = :md5", {"md5": score.bmap.md5})
         await db_conn.execute(

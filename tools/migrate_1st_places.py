@@ -30,6 +30,13 @@ async def main() -> int:
             for mode in GameMode.valid_gamemodes():
                 print(f"Getting first places for {GAMEMODE_REPR_LIST[mode]}")
             
+                if (mode in 
+                    (GameMode.RELAX_OSU, GameMode.AUTOPILOT_OSU, 
+                    GameMode.RELAX_TAIKO, GameMode.RELAX_CATCH)):
+                    sort = "s.pp"
+                else:
+                    sort = "s.score"
+                
                 for map in maps:
                     scores = await select_conn.fetch_all(
                         "SELECT s.map_md5, s.score, s.pp, s.acc, s.max_combo, s.mods, "
@@ -43,8 +50,9 @@ async def main() -> int:
                         "WHERE s.map_md5 = :map_md5 "
                         "AND s.mode = :mode "
                         "AND s.status = 2 "
-                        "AND u.priv & 1",
-                        {"map_md5": map["md5"], "mode": mode}
+                        "AND u.priv & 1 "
+                        "ORDER BY :sort DESC",
+                        {"map_md5": map["md5"], "mode": mode, "sort": sort}
                     )
 
                     if not scores:
