@@ -33,12 +33,12 @@ async def main() -> int:
                 if (mode in 
                     (GameMode.RELAX_OSU, GameMode.AUTOPILOT_OSU, 
                     GameMode.RELAX_TAIKO, GameMode.RELAX_CATCH)):
-                    sort = "s.pp"
+                    sort = "pp"
                 else:
-                    sort = "s.score"
+                    sort = "score"
                 
                 for map in maps:
-                    scores = await select_conn.fetch_all(
+                    score = await select_conn.fetch_one(
                         "SELECT s.map_md5, s.score, s.pp, s.acc, s.max_combo, s.mods, "
                         "s.n300, s.n100, s.n50, s.nmiss, s.ngeki, s.nkatu, s.grade, s.status, "
                         "s.mode, s.play_time, s.time_elapsed, s.client_flags, s.userid, s.perfect, "
@@ -51,14 +51,12 @@ async def main() -> int:
                         "AND s.mode = :mode "
                         "AND s.status = 2 "
                         "AND u.priv & 1 "
-                        "ORDER BY :sort DESC",
-                        {"map_md5": map["md5"], "mode": mode, "sort": sort}
+                        f"ORDER BY s.{sort} DESC LIMIT 1",
+                        {"map_md5": map["md5"], "mode": mode}
                     )
 
-                    if not scores:
+                    if not score:
                         continue
-                    
-                    score = scores[0]
 
                     await insert_conn.execute(
                         "INSERT INTO first_places "
