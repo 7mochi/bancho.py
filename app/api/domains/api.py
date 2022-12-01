@@ -396,9 +396,9 @@ async def api_get_player_scores(
         params["statuses"] = allowed_statuses
 
         if mode < 4:
-            sort = "t.score"
+            sort = "t.play_time DESC, t.score"
         else:
-            sort = "t.pp"
+            sort = "t.play_time DESC, t.pp"
 
     if bmap_md5 is not None or bmap_id is not None:
         if bmap_md5 is not None:
