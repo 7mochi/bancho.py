@@ -703,7 +703,7 @@ async def login(
         del user_info["clan_priv"]
         clan = clan_priv = None
 
-    db_country = user_info.pop("country")
+    db_country = user_info.get("country")
 
     if not ip.is_private:
         if app.state.services.geoloc_db is not None:
