@@ -1353,7 +1353,7 @@ async def get_leaderboard_scores(
         params["friends"] = player.friends | {player.id}
     elif leaderboard_type == LeaderboardType.Country:
         query.append("AND u.country = :country")
-        params["country"] = player.geoloc["country"]["acronym"]
+        params["country"] = player.db_country
 
     # TODO: customizability of the number of scores
     query.append("ORDER BY _score DESC LIMIT 50")

@@ -288,6 +288,7 @@ class Player:
                 "country": {"acronym": "xx", "numeric": 0},
             },
         )
+        self.db_country = extras.get("country")
 
         self.utc_offset = extras.get("utc_offset", 0)
         self.pm_private = extras.get("pm_private", False)
@@ -522,7 +523,7 @@ class Player:
                 self.id,
             )
             await app.state.services.redis.zrem(
-                f'bancho:leaderboard:{mode}:{self.geoloc["country"]["acronym"]}',
+                f'bancho:leaderboard:{mode}:{self.db_country}',
                 self.id,
             )
 
@@ -559,7 +560,7 @@ class Player:
                 {str(self.id): stats.pp},
             )
             await app.state.services.redis.zadd(
-                f"bancho:leaderboard:{mode.value}:{self.geoloc['country']['acronym']}",
+                f"bancho:leaderboard:{mode.value}:{self.db_country}",
                 {str(self.id): stats.pp},
             )
 
@@ -989,16 +990,14 @@ class Player:
         if self.restricted:
             return 0
 
-        country = self.geoloc["country"]["acronym"]
         rank = await app.state.services.redis.zrevrank(
-            f"bancho:leaderboard:{mode.value}:{country}",
+            f"bancho:leaderboard:{mode.value}:{self.db_country}",
             str(self.id),
         )
 
         return rank + 1 if rank is not None else 0
 
     async def update_rank(self, mode: GameMode) -> int:
-        country = self.geoloc["country"]["acronym"]
         stats = self.stats[mode]
 
         if not self.restricted:
@@ -1010,7 +1009,7 @@ class Player:
 
             # country rank
             await app.state.services.redis.zadd(
-                f"bancho:leaderboard:{mode.value}:{country}",
+                f"bancho:leaderboard:{mode.value}:{self.db_country}",
                 {str(self.id): stats.pp},
             )
 

@@ -1684,6 +1684,49 @@ if app.settings.DEVELOPER_MODE:
 
         return ret
 
+@command(Privileges.DEVELOPER)
+async def recalc_rank(ctx: Context) -> Optional[str]:
+    """Recalculate ranks (Global and country) for all users"""
+
+    # recalc all player ranks on the server, global and country
+    staff_chan = app.state.sessions.channels["#staff"]  # log any errors here
+
+    async def redis_recalc_all() -> None:
+        staff_chan.send_bot(f"{ctx.player} started a full rank recalculation.")
+        st = time.time();
+        
+        await app.state.services.redis.flushall()
+
+        for mode in GameMode.valid_gamemodes():
+            users = await app.state.services.database.fetch_all(
+                "SELECT u.id, u.priv, u.country, s.pp "
+                "FROM users u "
+                "LEFT JOIN stats s ON u.id = s.id "
+                "WHERE s.mode = :mode AND PRIV AND s.pp > 0",
+                {"mode": mode}
+            )
+
+            for user in users:
+                if Privileges.UNRESTRICTED:
+                    # global rank
+                    await app.state.services.redis.zadd(
+                        f"bancho:leaderboard:{mode}",
+                        {str(user['id']): user['pp']},
+                    )
+
+                    # country rank
+                    await app.state.services.redis.zadd(
+                        f"bancho:leaderboard:{mode}:{user['country']}",
+                        {str(user['id']): user['pp']},
+                    )
+            
+        elapsed = app.utils.seconds_readable(int(time.time() - st))
+        staff_chan.send_bot(f"Rank recalculation complete. | Elapsed: {elapsed}")
+    
+    app.state.loop.create_task(redis_recalc_all())
+
+    return "Starting a full rank recalculation."
+
 
 """ Multiplayer commands
 # The commands below for multiplayer match management.
