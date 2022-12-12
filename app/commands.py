@@ -67,7 +67,7 @@ from app.usecases.performance import ScoreDifficultyParams
 from app.utils import make_safe_name
 from app.utils import seconds_readable
 
-from rosu_pp_py import Beatmap, Calculator
+from rosu_pp_py import Beatmap as RosuBeatmap, Calculator
 
 if TYPE_CHECKING:
     from app.objects.channel import Channel
@@ -1239,7 +1239,7 @@ async def recalc(ctx: Context) -> Optional[str]:
             app.state.services.database.connection() as update_conn,
         ):
 
-            map = Beatmap(path = str(osu_file_path))
+            map = RosuBeatmap(path = str(osu_file_path))
             for mode in GameMode.valid_gamemodes():
                 # TODO: this should be using an async generator
                 for row in await score_select_conn.fetch_all(
@@ -1332,7 +1332,7 @@ async def recalc(ctx: Context) -> Optional[str]:
                         continue
 
                     # ezpp.set_mode(9)  # TODO: other gamemodes
-                    map = Beatmap(path = str(osu_file_path))
+                    map = RosuBeatmap(path = str(osu_file_path))
                     for mode in GameMode.valid_gamemodes():
                         # TODO: this should be using an async generator
                         for row in await score_select_conn.fetch_all(
