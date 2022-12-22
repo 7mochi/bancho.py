@@ -1,0 +1,50 @@
+version: "3"
+
+services:
+  mysql:
+    image: mysql
+    environment:
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASS}
+      MYSQL_HOST: ${DB_HOST}
+      MYSQL_PORT: ${DB_PORT}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_RANDOM_ROOT_PASSWORD: "true"
+    volumes:
+      - ./migrations/base.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - ${DB_PORT}:${DB_PORT}
+    expose:
+      - ${DB_PORT}
+  
+  redis:
+    image: redis
+    ports:
+      - '${REDIS_PORT}:${REDIS_PORT}'
+    command: redis-server --save 20 1 --loglevel warning
+  
+  bancho:
+    build: .
+    depends_on:
+      - mysql
+      - redis
+    tty: true
+    volumes:
+      - data:/.data
+  
+  nginx:
+    image: nginx
+    volumes:
+      - ./ext/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${SSL_CERT_PATH}:/etc/ssl/certs/bancho.pem:ro
+      - ${SSL_KEY_PATH}:/etc/ssl/private/bancho.key:ro
+      - data:/.data:ro
+    ports:
+      - 80:80
+      - ${HOST_PORT}:${HOST_PORT}
+    expose:
+      - 80
+      - ${HOST_PORT}
+
+volumes:
+  data:
