@@ -9,7 +9,8 @@ RUN apk update && apk add \
     gnupg \
     build-base \
     libffi-dev \
-    linux-headers
+    linux-headers \
+    wait4x
 
 # install rust
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
@@ -25,5 +26,7 @@ RUN python3.9 -m pip install --verbose -r requirements.txt
 # repeat the previous steps for each change
 COPY . .
 
-ENTRYPOINT ["python3.9"]
-CMD ["main.py"]
+#ENTRYPOINT ["python3.9"]
+#CMD ["main.py"]
+ENTRYPOINT [ "/bin/bash", "-c" ]
+CMD ["./scripts/start_server.sh"]
