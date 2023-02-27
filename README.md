@@ -210,10 +210,41 @@ and you should see something along the lines of:
 ![tada](https://cdn.discordapp.com/attachments/616400094408736779/993705619498467369/ld-iZXysVXqwhM8.png)
 
 
-## enabling cloudflare geolocation data
+## about geolocation
+bancho.py needs to get the user's geolocation information when creating a new account or logging in, it'll try to get it from cloudflare, geoip2 through nginx or ip-api.com if none of the previous ones worked.
+### enabling cloudflare geolocation data
 You have to go to the cloudflare dashboard and go to Rules > Transform rules, after that click on managed transforms and activate `add visitor location headers`.
 
 ![Enabling CF geolocation data](.github/images/cf_geoloc.png)
+
+### setting up the geoip2 module for nginx
+first you'll need to create a maxmind account from their [web site](https://www.maxmind.com/en/geolite2/signup)
+
+![Step 1](.github/images/maxmind_geoloc_1.png)
+
+after logging into your account go to the GeoIP2 / GeoLite2 section and click on download files
+
+![Step 2](.github/images/maxmind_geoloc_2.png)
+
+and download the GeoLite2 City database
+
+![Step 3](.github/images/maxmind_geoloc_3.png)
+
+finally you'll have to edit your nginx.conf file copied in previous steps, uncomment the geoip2 section and put the absolute path to the database downloaded earlier
+
+```
+geoip2 /home/user/GeoLite2-City.mmdb {
+	auto_reload 5m;
+	$geoip2_metadata_country_build metadata build_epoch;
+	$geoip2_data_country_code default=xx source=$remote_addr country iso_code;
+	$geoip2_data_latitude default=0.0 source=$remote_addr location latitude;
+	$geoip2_data_longitude default=0.0 source=$remote_addr location longitude;
+}
+```
+and reload nginx
+```sh
+sudo nginx -s reload
+```
 
 # Directory Structure
     .
